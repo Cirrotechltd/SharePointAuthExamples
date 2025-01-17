@@ -5,10 +5,13 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <StartupObject>SharePointCsomExample.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Identity.Client" Version="4.67.2" />
+    <PackageReference Include="Microsoft.SharePointOnline.CSOM" Version="16.1.25611.12000" />
+    <PackageReference Include="PnP.Framework" Version="1.17.0" />
     <PackageReference Include="System.Net.Http.Json" Version="9.0.1" />
   </ItemGroup>
 
