@@ -2,6 +2,7 @@
 using Microsoft.SharePoint.Client;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Identity.Client;
+using System.Threading.Tasks;
 
 namespace SharePointCsomExample
 {
@@ -18,7 +19,7 @@ namespace SharePointCsomExample
             try
             {
                 // Load the certificate
-                X509Certificate2 certificate = GetCertificateFromStore(certificateThumbprint);
+                X509Certificate2 certificate = LoadCertificateFromFile("C:\\Users\\iain\\certificate.pfx", "PASSWORD");
 
                 // Get access token
                 string accessToken = GetAccessToken(tenantId, clientId, certificate).Result;
@@ -38,7 +39,8 @@ namespace SharePointCsomExample
                         Console.WriteLine("1. Get Site Title");
                         Console.WriteLine("2. Create a New List");
                         Console.WriteLine("3. Retrieve List Items");
-                        Console.WriteLine("4. Exit");
+                        Console.WriteLine("4. List Documents in a Library");
+                        Console.WriteLine("5. Exit");
                         Console.Write("Choose an option: ");
 
                         string choice = Console.ReadLine();
@@ -76,11 +78,24 @@ namespace SharePointCsomExample
                                 break;
 
                             case "4":
+                                Console.Write("Enter the name of the document library: ");
+                                string libraryName = Console.ReadLine()?.Trim();
+                                if (!string.IsNullOrWhiteSpace(libraryName))
+                                {
+                                    ListDocumentsInLibrary(context, libraryName);
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Library name cannot be empty.");
+                                }
+                                break;
+
+                            case "5":
                                 Console.WriteLine("Exiting...");
                                 return;
 
                             default:
-                                Console.WriteLine("Invalid choice. Please enter 1, 2, 3, or 4.");
+                                Console.WriteLine("Invalid choice. Please enter 1, 2, 3, 4, or 5.");
                                 break;
                         }
                     }
@@ -92,21 +107,14 @@ namespace SharePointCsomExample
             }
         }
 
-        private static X509Certificate2 GetCertificateFromStore(string thumbprint)
+        private static X509Certificate2 LoadCertificateFromFile(string certificatePath, string certificatePassword)
         {
-            using (X509Store store = new X509Store(StoreLocation.CurrentUser))
+            if (string.IsNullOrWhiteSpace(certificatePath) || !System.IO.File.Exists(certificatePath))
             {
-                store.Open(OpenFlags.ReadOnly);
-                X509Certificate2Collection certCollection = store.Certificates.Find(
-                    X509FindType.FindByThumbprint, thumbprint, validOnly: false);
-
-                if (certCollection.Count == 0)
-                {
-                    throw new Exception("Certificate not found.");
-                }
-
-                return certCollection[0];
+                throw new Exception("Certificate file not found.");
             }
+
+            return new X509Certificate2(certificatePath, certificatePassword, X509KeyStorageFlags.EphemeralKeySet);
         }
 
         private static async Task<string> GetAccessToken(string tenantId, string clientId, X509Certificate2 certificate)
@@ -162,6 +170,34 @@ namespace SharePointCsomExample
             foreach (var item in items)
             {
                 Console.WriteLine($"ID: {item.Id}, Title: {item["Title"]}");
+            }
+        }
+
+        private static void ListDocumentsInLibrary(ClientContext context, string libraryName)
+        {
+            try
+            {
+                List documentLibrary = context.Web.Lists.GetByTitle(libraryName);
+                CamlQuery query = new CamlQuery
+                {
+                    ViewXml = "<View><ViewFields><FieldRef Name='FileLeafRef' /><FieldRef Name='FileRef' /></ViewFields></View>"
+                };
+
+                ListItemCollection items = documentLibrary.GetItems(query);
+                context.Load(items);
+                context.ExecuteQuery();
+
+                Console.WriteLine($"Documents in library '{libraryName}':");
+                foreach (var item in items)
+                {
+                    string fileName = item["FileLeafRef"]?.ToString();
+                    string fileUrl = item["FileRef"]?.ToString();
+                    Console.WriteLine($"Name: {fileName}, URL: {fileUrl}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error listing documents: {ex.Message}");
             }
         }
     }

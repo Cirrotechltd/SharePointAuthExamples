@@ -23,7 +23,10 @@ namespace SharePointApiExample
             try
             {
                 // Load Certificate
-                X509Certificate2 certificate = GetCertificateFromStore(certificateThumbprint);
+                //X509Certificate2 certificate = GetCertificateFromStore(certificateThumbprint);
+                X509Certificate2 certificate = LoadCertificateFromFile("C:\\Users\\iain\\certificate.pfx", "Password");
+
+                //X509Certificate2 certificate = GetCertificateFromStore(certificateThumbprint);
 
                 // Get Access Token
                 string[] scopes = { "https://lennoxfamily.sharepoint.com/.default" };
@@ -93,6 +96,15 @@ namespace SharePointApiExample
             {
                 Console.WriteLine($"Error: {ex.Message}");
             }
+        }
+        private static X509Certificate2 LoadCertificateFromFile(string certificatePath, string certificatePassword)
+        {
+            if (string.IsNullOrWhiteSpace(certificatePath) || !System.IO.File.Exists(certificatePath))
+            {
+                throw new Exception("Certificate file not found.");
+            }
+
+            return new X509Certificate2(certificatePath, certificatePassword, X509KeyStorageFlags.EphemeralKeySet);
         }
 
         private static X509Certificate2 GetCertificateFromStore(string thumbprint)
