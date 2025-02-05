@@ -8,12 +8,12 @@ namespace SharePointCsomExample
 {
     class Program
     {
-        static void Main(string[] args) //Main / OriginalMain
+        static void OriginalMain(string[] args) //Main / OriginalMain
         {
             // Azure AD and SharePoint Configuration
             string tenantId = "f4cbf802-fffb-4961-8633-9a240e5d234a";
             string clientId = "bdc37915-34aa-4ec6-8a86-1ce1363a09b1";
-            string certificateThumbprint = "82062f3830d6ae387e878dc0cb31e616c78042f8"; //82062F3830D6AE387E878DC0CB31E616C78042F8
+            //string certificateThumbprint = "82062f3830d6ae387e878dc0cb31e616c78042f8"; //82062F3830D6AE387E878DC0CB31E616C78042F8
             string siteUrl = "https://lennoxfamily.sharepoint.com/sites/AuthDemoSite";
 
             try
@@ -35,7 +35,7 @@ namespace SharePointCsomExample
                     while (true)
                     {
                         // Display menu
-                        Console.WriteLine("\nMenu:");
+                        Console.WriteLine("\nMenu (using Application Permission Access with certificate):");
                         Console.WriteLine("1. Get Site Title");
                         Console.WriteLine("2. Create a New List");
                         Console.WriteLine("3. Retrieve List Items");
