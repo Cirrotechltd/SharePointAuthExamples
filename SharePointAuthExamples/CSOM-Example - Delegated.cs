@@ -1,6 +1,10 @@
 ﻿using System;
 using Microsoft.SharePoint.Client;
 using Microsoft.Identity.Client;
+using Newtonsoft.Json;
+using System.IO;
+using System.Net;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace SharePointDelegatedExample
@@ -27,14 +31,16 @@ namespace SharePointDelegatedExample
 
                     while (true)
                     {
-                        Console.WriteLine("\nMenu:");
+                        Console.WriteLine("\nMenu (using Delegated Permission Access and MSAL):");
                         Console.WriteLine("1. Get Site Title");
                         Console.WriteLine("2. Create a New List");
                         Console.WriteLine("3. Retrieve List Items");
                         Console.WriteLine("4. Create a List Item");
                         Console.WriteLine("5. Update a List Item");
                         Console.WriteLine("6. List Documents in a Library");
-                        Console.WriteLine("7. Exit");
+                        Console.WriteLine("7. Update List Item Fields (Advanced)");
+                        Console.WriteLine("8. Update Created By Field");
+                        Console.WriteLine("9. Exit");
                         Console.Write("Choose an option: ");
 
                         string choice = Console.ReadLine();
@@ -111,11 +117,59 @@ namespace SharePointDelegatedExample
                                 break;
 
                             case "7":
+                                Console.Write("Enter the name of the list to update an item in: ");
+                                string targetListName = Console.ReadLine()?.Trim();
+                                if (!string.IsNullOrWhiteSpace(targetListName))
+                                {
+                                    Console.Write("Enter the ID of the item to update: ");
+                                    if (int.TryParse(Console.ReadLine(), out int targetItemId))
+                                    {
+                                        Console.Write("Enter the name of the field to update: ");
+                                        string fieldName = Console.ReadLine()?.Trim();
+                                        Console.Write("Enter the new value for the field: ");
+                                        string fieldValue = Console.ReadLine();
+                                        UpdateListItemFields(context, targetListName, targetItemId, fieldName, fieldValue);
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("Invalid item ID.");
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine("List name cannot be empty.");
+                                }
+                                break;
+
+                            case "8":
+                                Console.Write("Enter the name of the list to update an item in: ");
+                                string listToUpdate = Console.ReadLine()?.Trim();
+                                if (!string.IsNullOrWhiteSpace(listToUpdate))
+                                {
+                                    Console.Write("Enter the ID of the item to update: ");
+                                    if (int.TryParse(Console.ReadLine(), out int createdByItemId))
+                                    {
+                                        Console.Write("Enter the email of the new Created By user: ");
+                                        string createdByUser = Console.ReadLine()?.Trim();
+                                        UpdateCreatedByField(context, listToUpdate, createdByItemId, createdByUser, accessToken);
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("Invalid item ID.");
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine("List name cannot be empty.");
+                                }
+                                break;
+
+                            case "9":
                                 Console.WriteLine("Exiting...");
                                 return;
 
                             default:
-                                Console.WriteLine("Invalid choice. Please enter a number between 1 and 7.");
+                                Console.WriteLine("Invalid choice. Please enter a number between 1 and 9.");
                                 break;
                         }
                     }
@@ -248,6 +302,71 @@ namespace SharePointDelegatedExample
             catch (Exception ex)
             {
                 Console.WriteLine($"Error listing documents: {ex.Message}");
+            }
+        }
+
+        private static void UpdateListItemFields(ClientContext context, string listName, int itemId, string fieldName, string fieldValue)
+        {
+            try
+            {
+                List list = context.Web.Lists.GetByTitle(listName);
+                ListItem item = list.GetItemById(itemId);
+                item[fieldName] = fieldValue;
+                item.Update();
+                context.ExecuteQuery();
+                Console.WriteLine($"Field '{fieldName}' of item with ID '{itemId}' in list '{listName}' updated to '{fieldValue}'.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating list item field: {ex.Message}");
+            }
+        }
+
+        private static void UpdateCreatedByField(ClientContext context, string listName, int itemId, string userEmail, string accessToken)
+        {
+            try
+            {
+                // Use REST API to override Created By (Author)
+                string endpoint = $"{context.Url}/_api/web/lists/getbytitle('{listName}')/items({itemId})/ValidateUpdateListItem";
+                var payload = new
+                {
+                    formValues = new[]
+                    {
+                        new
+                        {
+                            FieldName = "Author",
+                            FieldValue = $"[{{\"Key\":\"i:0#.f|membership|{userEmail}\"}}]"
+                        }
+                    }
+                };
+
+                // Serialize payload to JSON
+                string jsonPayload = JsonConvert.SerializeObject(payload);
+
+                // Execute the REST API call
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(endpoint);
+                request.Method = "POST";
+                request.ContentType = "application/json;odata=verbose";
+                request.Headers.Add("Authorization", "Bearer " + accessToken);
+
+                using (var streamWriter = new StreamWriter(request.GetRequestStream()))
+                {
+                    streamWriter.Write(jsonPayload);
+                }
+
+                // Get response
+                using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                {
+                    using (var streamReader = new StreamReader(response.GetResponseStream()))
+                    {
+                        string result = streamReader.ReadToEnd();
+                        Console.WriteLine("Created By (Author) field updated successfully.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating Created By field: {ex.Message}");
             }
         }
     }
